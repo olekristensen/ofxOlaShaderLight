@@ -350,8 +350,8 @@ public:
     ofxOlaShaderLight(){
         if (!shaderSetup) {
             shader->load("shaders/phongShading");
-            shader->printLayout("Material");
-            shader->printLayout("Light");
+            //shader->printLayout("Material");
+            //shader->printLayout("Light");
             shaderSetup = true;
         }
     };
