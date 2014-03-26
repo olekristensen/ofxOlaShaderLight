@@ -7,13 +7,17 @@
 //
 
 #pragma once
+#define USE_OLA_LIB_AND_NOT_OSC 1
 
 #include "ofMain.h"
-//#include <ola/DmxBuffer.h>
-//#include <ola/Logging.h>
-//#include <ola/StreamingClient.h>
-#include "ofxUbo.h"
+#ifdef USE_OLA_LIB_AND_NOT_OSC
+#include <ola/DmxBuffer.h>
+#include <ola/Logging.h>
+#include <ola/StreamingClient.h>
+#else
 #include "ofxOsc.h"
+#endif
+#include "ofxUbo.h"
 
 #define MAX_SHADER_LIGHTS 512
 
@@ -33,7 +37,7 @@ public:
         DMX_CHANNEL_HUE,
         DMX_CHANNEL_SATURATION
     };
-    
+
     DMXchannel(unsigned int address, DMXchannelType type = DMX_CHANNEL_BRIGHTNESS, bool width16bit = false, unsigned int minValue = 0, unsigned int maxValue=255)
     {
         this->address = address;
@@ -42,51 +46,58 @@ public:
         this->minValue = minValue;
         this->maxValue = maxValue;
     };
-    
+
     DMXchannelType type;
     unsigned int address;
     unsigned int minValue;
     unsigned int maxValue;
     bool width16bit;
-    
+
 };
 
 class DMXfixture : public ofLight
 {
     static bool oladSetup;
 public:
-    DMXfixture(){
-        if(!oladSetup){
-/*            ola::InitLogging(ola::OLA_LOG_WARN, ola::OLA_LOG_STDERR);
-            
+    DMXfixture()
+    {
+        if(!oladSetup)
+        {
+#ifdef USE_OLA_LIB_AND_NOT_OSC
+            ola::InitLogging(ola::OLA_LOG_WARN, ola::OLA_LOG_STDERR);
             // Setup the client, this connects to the server
             if (!ola_client->Setup())
             {
                 std::cerr << "OLA Setup failed" << std::endl;
             }
-*/
+#else
             oscSender->setup("localhost", 7770);
-            
+#endif
+            oladSetup = true;
         }
         addMe();
     };
-    
-    ~DMXfixture(){
+
+    ~DMXfixture()
+    {
         removeMe();
     };
-    
+
     vector <DMXchannel*> DMXchannels;
     int DMXstartAddress;
-    
-    void setNormalisedBrightness(float brightness){
+
+    void setNormalisedBrightness(float brightness)
+    {
         ofFloatColor c = ofLight::getDiffuseColor();
         c.setBrightness(brightness);
         ofLight::setDiffuseColor(c);
     };
-    
-    float getNormalisedBrightness(){
-        return ofLight::getDiffuseColor().getBrightness();    };
-    
+
+    float getNormalisedBrightness()
+    {
+        return ofLight::getDiffuseColor().getBrightness();
+    };
+
     void setTemperature(unsigned int degreesKelvin)
     {
         temperature = degreesKelvin;
@@ -94,99 +105,107 @@ public:
         c.setBrightness(getNormalisedBrightness());
         ofLight::setDiffuseColor(c);
     };
-    
+
     unsigned int getTemperature()
     {
         return temperature;
     };
-    
-    static void update(){
-        for(int i = 0; i < 512; i++){
-            buffer[i] = 0;
-        }
-        
-            for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); it++){
-                DMXfixture * f = *(it);
-                
-                for(std::vector<DMXchannel*>::iterator chIt = f->DMXchannels.begin(); chIt != f->DMXchannels.end(); chIt++)
+
+    static void update()
+    {
+
+        for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); it++)
+        {
+            DMXfixture * f = *(it);
+
+            for(std::vector<DMXchannel*>::iterator chIt = f->DMXchannels.begin(); chIt != f->DMXchannels.end(); chIt++)
+            {
+
+                DMXchannel* c = *(chIt);
+
+                // set the normalised value as a float
+
+                float value = 0;
+                if(c->type == DMXchannel::DMX_CHANNEL_BRIGHTNESS)
+                {
+                    value = f->getNormalisedBrightness();
+                }
+                if(c->type == DMXchannel::DMX_CHANNEL_RED)
+                {
+                    value = f->ofLight::getDiffuseColor().r;
+                }
+                if(c->type == DMXchannel::DMX_CHANNEL_GREEN)
+                {
+                    value = f->ofLight::getDiffuseColor().g;
+                }
+                if(c->type == DMXchannel::DMX_CHANNEL_BLUE)
+                {
+                    value = f->ofLight::getDiffuseColor().b;
+                }
+                if(c->type == DMXchannel::DMX_CHANNEL_HUE)
+                {
+                    value = f->ofLight::getDiffuseColor().getHue();
+                }
+                if(c->type == DMXchannel::DMX_CHANNEL_SATURATION)
+                {
+                    value = f->ofLight::getDiffuseColor().getSaturation();
+                }
+                if(c->type == DMXchannel::DMX_CHANNEL_COLOR_TEMPERATURE)
+                {
+                    value = ofMap(f->getTemperature(), f->temperatureRangeWarmKelvin, f->temperatureRangeColdKelvin, 0, 1.);
+                }
+                if(c->type == DMXchannel::DMX_CHANNEL_CW)
+                {
+                    value = ofMap(f->getTemperature(), f->temperatureRangeColdKelvin, f->temperatureRangeWarmKelvin, 0, 1.);
+                    value = fminf(1.,ofMap(value, 0 , 0.5, 0., 1.));
+                    value *= f->getNormalisedBrightness();
+                }
+                if(c->type == DMXchannel::DMX_CHANNEL_WW)
+                {
+                    value = ofMap(f->getTemperature(), f->temperatureRangeWarmKelvin, f->temperatureRangeColdKelvin, 0, 1.);
+                    value = fminf(1.,ofMap(value, 0 , 0.5, 0., 1.));
+                    value *= f->getNormalisedBrightness();
+                }
+
+                // set int channel value as 8 or 16 bit;
+
+                if(c->width16bit)
                 {
 
-                    DMXchannel* c = *(chIt);
-                    
-                    // set the normalised value as a float
-                    
-                    float value = 0;
-                    if(c->type == DMXchannel::DMX_CHANNEL_BRIGHTNESS)
-                    {
-                        value = f->getNormalisedBrightness();
-                    }
-                    if(c->type == DMXchannel::DMX_CHANNEL_RED)
-                    {
-                        value = f->ofLight::getDiffuseColor().r;
-                    }
-                    if(c->type == DMXchannel::DMX_CHANNEL_GREEN)
-                    {
-                        value = f->ofLight::getDiffuseColor().g;
-                    }
-                    if(c->type == DMXchannel::DMX_CHANNEL_BLUE)
-                    {
-                        value = f->ofLight::getDiffuseColor().b;
-                    }
-                    if(c->type == DMXchannel::DMX_CHANNEL_HUE)
-                    {
-                        value = f->ofLight::getDiffuseColor().getHue();
-                    }
-                    if(c->type == DMXchannel::DMX_CHANNEL_SATURATION)
-                    {
-                        value = f->ofLight::getDiffuseColor().getSaturation();
-                    }
-                    if(c->type == DMXchannel::DMX_CHANNEL_COLOR_TEMPERATURE)
-                    {
-                        value = ofMap(f->getTemperature(), f->temperatureRangeWarmKelvin, f->temperatureRangeColdKelvin, 0, 1.);
-                    }
-                    if(c->type == DMXchannel::DMX_CHANNEL_CW)
-                    {
-                        value = ofMap(f->getTemperature(), f->temperatureRangeColdKelvin, f->temperatureRangeWarmKelvin, 0, 1.);
-                        value = fminf(1.,ofMap(value, 0 , 0.5, 0., 1.));
-                        value *= f->getNormalisedBrightness();
-                    }
-                    if(c->type == DMXchannel::DMX_CHANNEL_WW)
-                    {
-                        value = ofMap(f->getTemperature(), f->temperatureRangeWarmKelvin, f->temperatureRangeColdKelvin, 0, 1.);
-                        value = fminf(1.,ofMap(value, 0 , 0.5, 0., 1.));
-                        value *= f->getNormalisedBrightness();
-                    }
-                    
-                    // set int channel value as 8 or 16 bit;
-                    
-                    if(c->width16bit)
-                    {
-                        
-                        unsigned int valueInt = ofMap(value, 0.,1., 0, 65025);
-                        
-                        int highByte = valueInt/255;
-                            sendChannelValueIfChanged(c->address, highByte);
-                        int lowByte = valueInt%255;
-                        sendChannelValueIfChanged(c->address+1, highByte);
-                        
-                    }
-                    else
-                    {
-                        unsigned int valueInt = ofMap(value, 0.,1., 0, 255);
-                        sendChannelValueIfChanged(c->address, valueInt);
-                    }
+                    unsigned int valueInt = ofMap(value, 0.,1., 0, 65025);
+
+                    int highByte = valueInt/255;
+                    updateChannelValue(c->address, highByte);
+                    int lowByte = valueInt%255;
+                    updateChannelValue(c->address+1, highByte);
+
+                }
+                else
+                {
+                    unsigned int valueInt = ofMap(value, 0.,1., c->minValue, c->maxValue);
+                    updateChannelValue(c->address, valueInt);
                 }
             }
-            
-/*            if (!ola_client->SendDmx(0, *(buffer)))
-            {
-                cout << "Send DMX failed" << endl;
-            }
-*/
+        }
+
+#ifdef USE_OLA_LIB_AND_NOT_OSC
+        if (!ola_client->SendDmx(0, *(buffer)))
+        {
+            cout << "Send DMX failed" << endl;
+        }
+#endif
     };
-    
-    static void sendChannelValueIfChanged(int channel, int value){
-        if(buffer[channel-1] != value){
+
+#ifdef USE_OLA_LIB_AND_NOT_OSC
+    static void updateChannelValue(int channel, int value)
+    {
+        buffer->SetChannel(channel-1, value);
+    };
+#else
+    static void updateChannelValue(int channel, int value)
+    {
+        if(buffer[channel-1] != value)
+        {
             ofxOscMessage m;
             m.setAddress("/dmx/universe/0");
             m.addIntArg(channel);
@@ -194,21 +213,24 @@ public:
             oscSender->sendMessage(m);
             buffer[channel-1] = value;
         }
-    }
-    
-    void draw(){
+    };
+#endif // USE_OLA_LIB_AND_NOT_OSC
+
+    void draw()
+    {
         ofPushStyle();
         ofSetColor(ofLight::getDiffuseColor());
         ofLight::draw();
+        ofDrawBitmapString(ofToString(DMXstartAddress), ofLight::getGlobalPosition());
         ofPopStyle();
     }
-    
+
     unsigned int temperatureRangeColdKelvin;
     unsigned int temperatureRangeWarmKelvin;
-    
+
     static ofFloatColor temperatureToColor(unsigned int temp)
     {
-        
+
         float blackbodyColor[91*3] =
         {
             1.0000, 0.0425, 0.0000, // 1000K
@@ -303,146 +325,173 @@ public:
             0.6000, 0.7453, 1.0000,
             0.5944, 0.7414, 1.0000 /* 10000K */
         };
-        
+
         float alpha = (temp % 100) / 100.0;
         int temp_index = ((temp - 1000) / 100)*3;
-        
+
         ofFloatColor fromColor = ofFloatColor(blackbodyColor[temp_index], blackbodyColor[temp_index+1], blackbodyColor[temp_index+2]);
         ofFloatColor toColor = ofFloatColor(blackbodyColor[temp_index+3], blackbodyColor[temp_index+3+1], blackbodyColor[temp_index+3+2]);
-        
+
         return fromColor.lerp(toColor, alpha);
     };
-    
-//    static ola::DmxBuffer * buffer;
-//    static ola::StreamingClient * ola_client;
-    
-    static ofxOscSender * oscSender;
 
+#ifdef USE_OLA_LIB_AND_NOT_OSC
+    static ola::DmxBuffer * buffer;
+    static ola::StreamingClient * ola_client;
+#else
+    static ofxOscSender * oscSender;
     static int * buffer;
-    
+#endif
+
 protected:
-    
+
     unsigned int temperature;
-    
+
     static vector<DMXfixture*> * DMXfixtures;
-    
-    void addMe(){
+
+    void addMe()
+    {
         DMXfixtures->push_back(this);
     }
-    
-    void removeMe(){
-        for(vector<DMXfixture*>::iterator it = DMXfixtures->begin();it != DMXfixtures->end();++it ){
+
+    void removeMe()
+    {
+        for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); ++it )
+        {
             DMXfixture * l = *(it);
-            if(this == l){
+            if(this == l)
+            {
                 DMXfixtures->erase(it);
             }
         }
     }
-    
+
 };
 
-class ofxOlaShaderLight : public DMXfixture {
+class ofxOlaShaderLight : public DMXfixture
+{
 
 public:
 
     static ofxUboShader * shader;
-    
-    ofxOlaShaderLight(){
-        if (!shaderSetup) {
+
+    ofxOlaShaderLight()
+    {
+        if (!shaderSetup)
+        {
             shader->load("shaders/phongShading");
             //shader->printLayout("Material");
             //shader->printLayout("Light");
             shaderSetup = true;
         }
     };
-    
-    ~ofxOlaShaderLight(){
-        if(DMXfixture::DMXfixtures->size()<1){
+
+    ~ofxOlaShaderLight()
+    {
+        if(DMXfixture::DMXfixtures->size()<1)
+        {
             shaderSetup = false;
         }
     }
-    
-    void setupBrightnessDMXChannel(int startAddress){
+
+    void setupBrightnessDMXChannel(int startAddress)
+    {
         DMXstartAddress = startAddress;
         if(startAddress > 0)
         {
             DMXchannels.push_back(new DMXchannel(startAddress, DMXchannel::DMX_CHANNEL_BRIGHTNESS, false));
         }
     }
-    
-    struct Material {
+
+    struct Material
+    {
         ofVec4f diffuseColor;
         ofVec4f specularColor;
         float specularShininess;
     };
-    
-    struct PerLight {
+
+    struct PerLight
+    {
         ofVec3f cameraSpaceLightPos;
         ofVec4f lightIntensity;
         float lightAttenuation;
     };
-    
-    struct Light {
+
+    struct Light
+    {
         ofVec4f ambientIntensity;
         int numberLights;
         PerLight lights[MAX_SHADER_LIGHTS];
     };
-    
-    static void begin(){
-        if(shaderSetup){
+
+    static void begin()
+    {
+        if(shaderSetup)
+        {
             shader->begin();
             updateShader();
         }
     }
-    
-    static void end(){
-        if(shaderSetup){
+
+    static void end()
+    {
+        if(shaderSetup)
+        {
             shader->end();
         }
     }
-    
-    static void setMaterial(Material m){
-        if (shaderSetup){
+
+    static void setMaterial(Material m)
+    {
+        if (shaderSetup)
+        {
             shader->setUniformBuffer("Material",m);
         }
     }
-    
+
 protected:
-    
+
     static Light lightStruct;
-    
-    static void updateShaderLightStruct(){
-        
+
+    static void updateShaderLightStruct()
+    {
+
         GLfloat cc[4];
         glGetFloatv(GL_LIGHT_MODEL_AMBIENT, cc);
-        
+
         //TODO: use cc
-        
+
         lightStruct.ambientIntensity = ofVec4f(0.0,0.0,0.0,1.0);
         lightStruct.numberLights = DMXfixtures->size();
         int lightIndex = 0;
-        for(vector<DMXfixture*>::iterator it = DMXfixtures->begin();it != DMXfixtures->end();++it ){
+        for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); ++it )
+        {
             DMXfixture * l = *(it);
-            if(lightIndex < MAX_SHADER_LIGHTS){
+            if(lightIndex < MAX_SHADER_LIGHTS)
+            {
                 ofFloatColor c = l->getDiffuseColor();
                 lightStruct.lights[lightIndex].lightIntensity = ofVec4f(c[0],c[1],c[2],c[3]);
                 lightStruct.lights[lightIndex].lightAttenuation = l->getAttenuationConstant();
                 ofVec3f lightCamSpacePos = l->getPosition() * ofGetCurrentMatrix(OF_MATRIX_MODELVIEW);
                 lightStruct.lights[lightIndex].cameraSpaceLightPos = lightCamSpacePos;
-            } else {
+            }
+            else
+            {
                 ofLog(OF_LOG_ERROR, "ofxOlaShaderLights: There are more lights than MAX_SHADER_LIGHTS");
             }
             lightIndex++;
         }
-};
-    
-    static void updateShader(){
-        if (shaderSetup) {
+    };
+
+    static void updateShader()
+    {
+        if (shaderSetup)
+        {
             updateShaderLightStruct();
             shader->setUniformBuffer("Light", lightStruct);
         }
     }
-    
+
     static bool shaderSetup;
-    
+
 };

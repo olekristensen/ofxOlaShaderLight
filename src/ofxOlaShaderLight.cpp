@@ -15,12 +15,12 @@ ofxOlaShaderLight::Light ofxOlaShaderLight::lightStruct = ofxOlaShaderLight::Lig
 vector<DMXfixture*> * DMXfixture::DMXfixtures = new vector<DMXfixture*>;
 bool DMXfixture::oladSetup = false;
 
-int * DMXfixture::buffer = new int[512];
-
-ofxOscSender * DMXfixture::oscSender = new ofxOscSender();
-
-/*
+#ifdef USE_OLA_LIB_AND_NOT_OSC
  ola::DmxBuffer * DMXfixture::buffer = new ola::DmxBuffer();
  ola::StreamingClient * DMXfixture::ola_client = new ola::StreamingClient();
- */
+#else
+ofxOscSender * DMXfixture::oscSender = new ofxOscSender();
+int * DMXfixture::buffer = new int[512];
+#endif // LINUX/*
+
 
