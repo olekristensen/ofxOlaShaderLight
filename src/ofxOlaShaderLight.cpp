@@ -21,6 +21,6 @@ bool DMXfixture::oladSetup = false;
 #else
 ofxOscSender * DMXfixture::oscSender = new ofxOscSender();
 int * DMXfixture::buffer = new int[512];
-#endif // LINUX/*
+#endif // USE_OLA_LIB_AND_NOT_OSC/*
 
 
