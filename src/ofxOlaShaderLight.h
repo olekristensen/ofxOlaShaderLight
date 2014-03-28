@@ -79,7 +79,9 @@ public:
     
     ~DMXfixture()
     {
-        removeMe();
+        if(!DMXfixtures->empty()){
+            removeMe();
+        }
     };
     
     vector <DMXchannel*> DMXchannels;
@@ -355,13 +357,18 @@ protected:
     
     void removeMe()
     {
-        for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); ++it )
-        {
+        if(DMXfixtures->size() == 1){
+            DMXfixtures->clear();
+        } else {
+            for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); ++it )
+            {
                 DMXfixture * l = *(it);
                 if(this == l)
                 {
                     DMXfixtures->erase(it);
+                    break;
                 }
+            }
         }
     }
     
@@ -387,7 +394,7 @@ public:
     
     ~ofxOlaShaderLight()
     {
-        if(DMXfixture::DMXfixtures->size()<1)
+        if(DMXfixture::DMXfixtures->empty())
         {
             shaderSetup = false;
         }
