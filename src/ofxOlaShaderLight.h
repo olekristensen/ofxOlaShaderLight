@@ -436,6 +436,7 @@ public:
         {
             shader->begin();
             updateShader();
+            enabled = true;
         }
     }
     
@@ -444,6 +445,7 @@ public:
         if(shaderSetup)
         {
             shader->end();
+            enabled = false;
         }
     }
     
@@ -453,6 +455,10 @@ public:
         {
             shader->setUniformBuffer("Material",m);
         }
+    }
+    
+    static bool isEnabled(){
+        return enabled;
     }
     
 protected:
@@ -499,5 +505,7 @@ protected:
     }
     
     static bool shaderSetup;
+    
+    static bool enabled;
     
 };

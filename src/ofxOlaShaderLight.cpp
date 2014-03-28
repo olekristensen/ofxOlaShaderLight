@@ -9,6 +9,7 @@
 #include "ofxOlaShaderLight.h"
 
 bool ofxOlaShaderLight::shaderSetup = false;
+bool ofxOlaShaderLight::enabled = false;
 ofxUboShader * ofxOlaShaderLight::shader = new ofxUboShader();
 ofxOlaShaderLight::Light ofxOlaShaderLight::lightStruct = ofxOlaShaderLight::Light();
 
