@@ -3,6 +3,9 @@
 in vec4 position;
 in vec3 normal;
 
+flat out vec3 vertexNormalFlat;
+flat out vec3 cameraSpacePositionFlat;
+
 out vec3 vertexNormal;
 out vec3 cameraSpacePosition;
 
@@ -24,7 +27,7 @@ void main(){
 	//vertexNormal = normalize(normalMatrix.matrix * normal);
     // this is a dirty hack!!
     vertexNormal = vec3(modelViewMatrix * vec4(normal,0.0));
-    
+    vertexNormalFlat = vec3(modelViewMatrix * vec4(normal,0.0));
     vec3 vertexOffset;
     vertexOffset.x =rand(position.yz)*2;
     vertexOffset.y =rand(position.xz);
@@ -33,5 +36,7 @@ void main(){
     vertexOffset*=position.z;
     cameraSpacePosition = (modelViewMatrix * position).xyz;
     cameraSpacePosition += vertexOffset;
+    cameraSpacePositionFlat = (modelViewMatrix * position).xyz;
+    cameraSpacePositionFlat += vertexOffset;
 	gl_Position = modelViewProjectionMatrix * (position+vec4(vertexOffset,0.0));
 }

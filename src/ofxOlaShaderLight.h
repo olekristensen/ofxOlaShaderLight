@@ -381,6 +381,12 @@ public:
     
     static ofxUboShader * shader;
     
+    enum shadingType {
+        OFX_OLA_SHADER_LIGHT_PHONG,
+        OFX_OLA_SHADER_LIGHT_GOURAUD,
+        OFX_OLA_SHADER_LIGHT_FLAT
+    };
+    
     ofxOlaShaderLight()
     {
         if (!shaderSetup)
@@ -444,6 +450,7 @@ public:
     {
         if(shaderSetup)
         {
+            glShadeModel(GL_SMOOTH);
             shader->end();
             enabled = false;
         }
@@ -459,6 +466,10 @@ public:
     
     static bool isEnabled(){
         return enabled;
+    }
+    
+    static void setShadingType(shadingType s){
+        shading = s;
     }
     
 protected:
@@ -501,11 +512,28 @@ protected:
         {
             updateShaderLightStruct();
             shader->setUniformBuffer("Light", lightStruct);
+            
+            switch (shading) {
+                case OFX_OLA_SHADER_LIGHT_FLAT:
+                    shader->setUniform1i("flatShading", 2);
+                    break;
+                case OFX_OLA_SHADER_LIGHT_GOURAUD:
+                    shader->setUniform1i("flatShading", 1);
+                    break;
+                case OFX_OLA_SHADER_LIGHT_PHONG:
+                    shader->setUniform1i("flatShading", 0);
+                    break;
+                    
+                default:
+                    break;
+            }
         }
     }
     
     static bool shaderSetup;
     
     static bool enabled;
+    
+    static shadingType shading;
     
 };
