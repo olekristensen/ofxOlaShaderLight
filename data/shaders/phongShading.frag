@@ -1,5 +1,8 @@
 #version 150
 
+flat in vec3 vertexNormalFlat;
+flat in vec3 cameraSpacePositionFlat;
+
 in vec3 vertexNormal;
 in vec3 cameraSpacePosition;
 
@@ -27,6 +30,8 @@ uniform Light
     int numberOfLights;
 	PerLight lights[maxNumberofLights];
 } Lgt;
+
+uniform int flatShading;
 
 
 float CalcAttenuation(in vec3 cameraSpacePosition,
@@ -70,11 +75,23 @@ vec4 ComputeLighting(in PerLight lightData, in vec3 cameraSpacePosition,
 
 void main()
 {
+    vec3 theVertexNormal;
+    vec3 theCameraSpacePosition;
+    if (flatShading == 0) {
+        theVertexNormal = vertexNormal;
+        theCameraSpacePosition = cameraSpacePosition;
+    } else if(flatShading == 1) {
+        theVertexNormal = vertexNormalFlat;
+        theCameraSpacePosition = cameraSpacePosition;
+    } else if(flatShading == 2) {
+        theVertexNormal = vertexNormalFlat;
+        theCameraSpacePosition = cameraSpacePositionFlat;
+    }
 	vec4 accumLighting = Mtl.diffuseColor * Lgt.ambientIntensity;
 	for(int light = 0; light < Lgt.numberOfLights; light++)
 	{
 		accumLighting += ComputeLighting(Lgt.lights[light],
-			cameraSpacePosition, vertexNormal);
+			theCameraSpacePosition, theVertexNormal);
 	}
 	outputColor = accumLighting;
 }

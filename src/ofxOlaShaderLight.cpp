@@ -9,6 +9,8 @@
 #include "ofxOlaShaderLight.h"
 
 bool ofxOlaShaderLight::shaderSetup = false;
+bool ofxOlaShaderLight::enabled = false;
+ofxOlaShaderLight::shadingType ofxOlaShaderLight::shading = OFX_OLA_SHADER_LIGHT_PHONG;
 ofxUboShader * ofxOlaShaderLight::shader = new ofxUboShader();
 ofxOlaShaderLight::Light ofxOlaShaderLight::lightStruct = ofxOlaShaderLight::Light();
 
@@ -21,6 +23,6 @@ bool DMXfixture::oladSetup = false;
 #else
 ofxOscSender * DMXfixture::oscSender = new ofxOscSender();
 int * DMXfixture::buffer = new int[512];
-#endif // LINUX/*
+#endif // USE_OLA_LIB_AND_NOT_OSC/*
 
 

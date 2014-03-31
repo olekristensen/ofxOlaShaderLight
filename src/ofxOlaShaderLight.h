@@ -7,7 +7,6 @@
 //
 
 #pragma once
-#define USE_OLA_LIB_AND_NOT_OSC 1
 
 #include "ofMain.h"
 #ifdef USE_OLA_LIB_AND_NOT_OSC
@@ -80,7 +79,9 @@ public:
 
     ~DMXfixture()
     {
-        removeMe();
+        if(!DMXfixtures->empty()){
+            removeMe();
+        }
     };
 
     vector <DMXchannel*> DMXchannels;
@@ -113,7 +114,6 @@ public:
 
     static void update()
     {
-
 #ifdef USE_OLA_LIB_AND_NOT_OSC
         buffer->Blackout();
 #endif
@@ -359,12 +359,17 @@ protected:
 
     void removeMe()
     {
-        for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); ++it )
-        {
-            DMXfixture * l = *(it);
-            if(this == l)
+        if(DMXfixtures->size() == 1){
+            DMXfixtures->clear();
+        } else {
+            for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); ++it )
             {
-                DMXfixtures->erase(it);
+                DMXfixture * l = *(it);
+                if(this == l)
+                {
+                    DMXfixtures->erase(it);
+                    break;
+                }
             }
         }
     }
@@ -378,20 +383,26 @@ public:
 
     static ofxUboShader * shader;
 
+    enum shadingType {
+        OFX_OLA_SHADER_LIGHT_PHONG,
+        OFX_OLA_SHADER_LIGHT_GOURAUD,
+        OFX_OLA_SHADER_LIGHT_FLAT
+    };
+
     ofxOlaShaderLight()
     {
         if (!shaderSetup)
         {
             shader->load("shaders/phongShading");
-            shader->printLayout("Material");
-            shader->printLayout("Light");
+            //shader->printLayout("Material");
+            //shader->printLayout("Light");
             shaderSetup = true;
         }
     };
 
     ~ofxOlaShaderLight()
     {
-        if(DMXfixture::DMXfixtures->size()<1)
+        if(DMXfixture::DMXfixtures->empty())
         {
             shaderSetup = false;
         }
@@ -433,6 +444,7 @@ public:
         {
             shader->begin();
             updateShader();
+            enabled = true;
         }
     }
 
@@ -440,7 +452,9 @@ public:
     {
         if(shaderSetup)
         {
+            glShadeModel(GL_SMOOTH);
             shader->end();
+            enabled = false;
         }
     }
 
@@ -450,6 +464,14 @@ public:
         {
             shader->setUniformBuffer("Material",m);
         }
+    }
+
+    static bool isEnabled(){
+        return enabled;
+    }
+
+    static void setShadingType(shadingType s){
+        shading = s;
     }
 
 protected:
@@ -492,9 +514,28 @@ protected:
         {
             updateShaderLightStruct();
             shader->setUniformBuffer("Light", lightStruct);
+
+            switch (shading) {
+                case OFX_OLA_SHADER_LIGHT_FLAT:
+                    shader->setUniform1i("flatShading", 2);
+                    break;
+                case OFX_OLA_SHADER_LIGHT_GOURAUD:
+                    shader->setUniform1i("flatShading", 1);
+                    break;
+                case OFX_OLA_SHADER_LIGHT_PHONG:
+                    shader->setUniform1i("flatShading", 0);
+                    break;
+
+                default:
+                    break;
+            }
         }
     }
 
     static bool shaderSetup;
+
+    static bool enabled;
+
+    static shadingType shading;
 
 };
