@@ -114,6 +114,9 @@ public:
     static void update()
     {
 
+#ifdef USE_OLA_LIB_AND_NOT_OSC
+        buffer->Blackout();
+#endif
         for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); it++)
         {
             DMXfixture * f = *(it);
