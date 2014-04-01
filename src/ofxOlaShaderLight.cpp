@@ -5,7 +5,7 @@
 //  Created by Ole Kristensen on 22/03/14.
 //
 //
-
+#include "defines.h"
 #include "ofxOlaShaderLight.h"
 
 bool ofxOlaShaderLight::shaderSetup = false;

@@ -58,6 +58,15 @@ class DMXfixture : public ofLight
 {
     static bool oladSetup;
 public:
+
+#ifdef USE_OLA_LIB_AND_NOT_OSC
+    static ola::DmxBuffer * buffer;
+    static ola::StreamingClient * ola_client;
+#else
+    static ofxOscSender * oscSender;
+    static int * buffer;
+#endif
+
     DMXfixture()
     {
         if(!oladSetup)
@@ -337,14 +346,6 @@ public:
 
         return fromColor.lerp(toColor, alpha);
     };
-
-#ifdef USE_OLA_LIB_AND_NOT_OSC
-    static ola::DmxBuffer * buffer;
-    static ola::StreamingClient * ola_client;
-#else
-    static ofxOscSender * oscSender;
-    static int * buffer;
-#endif
 
 protected:
 
