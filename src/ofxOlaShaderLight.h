@@ -37,13 +37,14 @@ public:
         DMX_CHANNEL_SATURATION
     };
 
-    DMXchannel(unsigned int address, DMXchannelType type = DMX_CHANNEL_BRIGHTNESS, bool width16bit = false, unsigned int minValue = 0, unsigned int maxValue=255)
+    DMXchannel(unsigned int address, DMXchannelType type = DMX_CHANNEL_BRIGHTNESS, bool width16bit = false, bool inverted = false, unsigned int minValue = 0, unsigned int maxValue=255)
     {
         this->address = address;
         this->type = type;
         this->width16bit = width16bit;
         this->minValue = minValue;
         this->maxValue = maxValue;
+        this->inverted = inverted;
     };
 
     DMXchannelType type;
@@ -51,6 +52,7 @@ public:
     unsigned int minValue;
     unsigned int maxValue;
     bool width16bit;
+    bool inverted;
 
 };
 
@@ -177,6 +179,10 @@ public:
                     value = ofMap(f->getTemperature(), f->temperatureRangeWarmKelvin, f->temperatureRangeColdKelvin, 0, 1.);
                     value = fminf(1.,ofMap(value, 0 , 0.5, 0., 1.));
                     value *= f->getNormalisedBrightness();
+                }
+
+                if(c->inverted){
+                    value = 1.0-value;
                 }
 
                 // set int channel value as 8 or 16 bit;
