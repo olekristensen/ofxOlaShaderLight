@@ -36,28 +36,39 @@ public:
         DMX_CHANNEL_HUE,
         DMX_CHANNEL_SATURATION
     };
-    
-    DMXchannel(unsigned int address, DMXchannelType type = DMX_CHANNEL_BRIGHTNESS, bool width16bit = false, unsigned int minValue = 0, unsigned int maxValue=255)
+
+    DMXchannel(unsigned int address, DMXchannelType type = DMX_CHANNEL_BRIGHTNESS, bool width16bit = false, bool inverted = false, unsigned int minValue = 0, unsigned int maxValue=255)
     {
         this->address = address;
         this->type = type;
         this->width16bit = width16bit;
         this->minValue = minValue;
         this->maxValue = maxValue;
+        this->inverted = inverted;
     };
-    
+
     DMXchannelType type;
     unsigned int address;
     unsigned int minValue;
     unsigned int maxValue;
     bool width16bit;
-    
+    bool inverted;
+
 };
 
 class DMXfixture : public ofLight
 {
     static bool oladSetup;
 public:
+
+#ifdef USE_OLA_LIB_AND_NOT_OSC
+    static ola::DmxBuffer * buffer;
+    static ola::StreamingClient * ola_client;
+#else
+    static ofxOscSender * oscSender;
+    static int * buffer;
+#endif
+
     DMXfixture()
     {
         if(!oladSetup)
@@ -76,29 +87,29 @@ public:
         }
         addMe();
     };
-    
+
     ~DMXfixture()
     {
         if(!DMXfixtures->empty()){
             removeMe();
         }
     };
-    
+
     vector <DMXchannel*> DMXchannels;
     int DMXstartAddress;
-    
+
     void setNormalisedBrightness(float brightness)
     {
         ofFloatColor c = ofLight::getDiffuseColor();
         c.setBrightness(brightness);
         ofLight::setDiffuseColor(c);
     };
-    
+
     float getNormalisedBrightness()
     {
         return ofLight::getDiffuseColor().getBrightness();
     };
-    
+
     void setTemperature(unsigned int degreesKelvin)
     {
         temperature = degreesKelvin;
@@ -106,26 +117,28 @@ public:
         c.setBrightness(getNormalisedBrightness());
         ofLight::setDiffuseColor(c);
     };
-    
+
     unsigned int getTemperature()
     {
         return temperature;
     };
-    
+
     static void update()
     {
-        
+#ifdef USE_OLA_LIB_AND_NOT_OSC
+        buffer->Blackout();
+#endif
         for(vector<DMXfixture*>::iterator it = DMXfixtures->begin(); it != DMXfixtures->end(); it++)
         {
             DMXfixture * f = *(it);
-            
+
             for(std::vector<DMXchannel*>::iterator chIt = f->DMXchannels.begin(); chIt != f->DMXchannels.end(); chIt++)
             {
-                
+
                 DMXchannel* c = *(chIt);
-                
+
                 // set the normalised value as a float
-                
+
                 float value = 0;
                 if(c->type == DMXchannel::DMX_CHANNEL_BRIGHTNESS)
                 {
@@ -167,19 +180,23 @@ public:
                     value = fminf(1.,ofMap(value, 0 , 0.5, 0., 1.));
                     value *= f->getNormalisedBrightness();
                 }
-                
+
+                if(c->inverted){
+                    value = 1.0-value;
+                }
+
                 // set int channel value as 8 or 16 bit;
-                
+
                 if(c->width16bit)
                 {
-                    
+
                     unsigned int valueInt = ofMap(value, 0.,1., 0, 65025);
-                    
+
                     int highByte = valueInt/255;
                     updateChannelValue(c->address, highByte);
                     int lowByte = valueInt%255;
                     updateChannelValue(c->address+1, highByte);
-                    
+
                 }
                 else
                 {
@@ -188,7 +205,7 @@ public:
                 }
             }
         }
-        
+
 #ifdef USE_OLA_LIB_AND_NOT_OSC
         if (!ola_client->SendDmx(0, *(buffer)))
         {
@@ -196,7 +213,7 @@ public:
         }
 #endif
     };
-    
+
 #ifdef USE_OLA_LIB_AND_NOT_OSC
     static void updateChannelValue(int channel, int value)
     {
@@ -216,7 +233,7 @@ public:
         }
     };
 #endif // USE_OLA_LIB_AND_NOT_OSC
-    
+
     void draw()
     {
         ofPushStyle();
@@ -225,13 +242,13 @@ public:
         ofDrawBitmapString(ofToString(DMXstartAddress), ofLight::getGlobalPosition());
         ofPopStyle();
     }
-    
+
     unsigned int temperatureRangeColdKelvin;
     unsigned int temperatureRangeWarmKelvin;
-    
+
     static ofFloatColor temperatureToColor(unsigned int temp)
     {
-        
+
         float blackbodyColor[91*3] =
         {
             1.0000, 0.0425, 0.0000, // 1000K
@@ -326,35 +343,27 @@ public:
             0.6000, 0.7453, 1.0000,
             0.5944, 0.7414, 1.0000 /* 10000K */
         };
-        
+
         float alpha = (temp % 100) / 100.0;
         int temp_index = ((temp - 1000) / 100)*3;
-        
+
         ofFloatColor fromColor = ofFloatColor(blackbodyColor[temp_index], blackbodyColor[temp_index+1], blackbodyColor[temp_index+2]);
         ofFloatColor toColor = ofFloatColor(blackbodyColor[temp_index+3], blackbodyColor[temp_index+3+1], blackbodyColor[temp_index+3+2]);
-        
+
         return fromColor.lerp(toColor, alpha);
     };
-    
-#ifdef USE_OLA_LIB_AND_NOT_OSC
-    static ola::DmxBuffer * buffer;
-    static ola::StreamingClient * ola_client;
-#else
-    static ofxOscSender * oscSender;
-    static int * buffer;
-#endif
-    
+
 protected:
-    
+
     unsigned int temperature;
-    
+
     static vector<DMXfixture*> * DMXfixtures;
-    
+
     void addMe()
     {
         DMXfixtures->push_back(this);
     }
-    
+
     void removeMe()
     {
         if(DMXfixtures->size() == 1){
@@ -371,22 +380,22 @@ protected:
             }
         }
     }
-    
+
 };
 
 class ofxOlaShaderLight : public DMXfixture
 {
-    
+
 public:
-    
+
     static ofxUboShader * shader;
-    
+
     enum shadingType {
         OFX_OLA_SHADER_LIGHT_PHONG,
         OFX_OLA_SHADER_LIGHT_GOURAUD,
         OFX_OLA_SHADER_LIGHT_FLAT
     };
-    
+
     ofxOlaShaderLight()
     {
         if (!shaderSetup)
@@ -397,7 +406,7 @@ public:
             shaderSetup = true;
         }
     };
-    
+
     ~ofxOlaShaderLight()
     {
         if(DMXfixture::DMXfixtures->empty())
@@ -405,7 +414,7 @@ public:
             shaderSetup = false;
         }
     }
-    
+
     void setupBrightnessDMXChannel(int startAddress)
     {
         DMXstartAddress = startAddress;
@@ -414,21 +423,21 @@ public:
             DMXchannels.push_back(new DMXchannel(startAddress, DMXchannel::DMX_CHANNEL_BRIGHTNESS, false));
         }
     }
-    
+
     struct Material
     {
         ofVec4f diffuseColor;
         ofVec4f specularColor;
         float specularShininess;
     };
-    
+
     struct PerLight
     {
         ofVec3f cameraSpaceLightPos;
         ofVec4f lightIntensity;
         float lightAttenuation;
     };
-    
+
     struct Light
     {
         ofVec4f ambientIntensity;
@@ -443,7 +452,6 @@ public:
         ofVec4f points [100];
     };
 
-    
     static void begin()
     {
         if(shaderSetup)
@@ -453,7 +461,7 @@ public:
             enabled = true;
         }
     }
-    
+
     static void end()
     {
         if(shaderSetup)
@@ -463,7 +471,7 @@ public:
             enabled = false;
         }
     }
-    
+
     static void setMaterial(Material m)
     {
         if (shaderSetup)
@@ -479,27 +487,27 @@ public:
             shader->setUniformBuffer("vertexNoise",n);
         }
     }
-    
+
     static bool isEnabled(){
         return enabled;
     }
-    
+
     static void setShadingType(shadingType s){
         shading = s;
     }
-    
+
 protected:
-    
+
     static Light lightStruct;
-    
+
     static void updateShaderLightStruct()
     {
-        
+
         GLfloat cc[4];
         glGetFloatv(GL_LIGHT_MODEL_AMBIENT, cc);
-        
+
         //TODO: use cc
-        
+
         lightStruct.ambientIntensity = ofVec4f(0.0,0.0,0.0,1.0);
         lightStruct.numberLights = DMXfixtures->size();
         int lightIndex = 0;
@@ -521,14 +529,14 @@ protected:
             lightIndex++;
         }
     };
-    
+
     static void updateShader()
     {
         if (shaderSetup)
         {
             updateShaderLightStruct();
             shader->setUniformBuffer("Light", lightStruct);
-            
+
             switch (shading) {
                 case OFX_OLA_SHADER_LIGHT_FLAT:
                     shader->setUniform1i("flatShading", 2);
@@ -539,17 +547,17 @@ protected:
                 case OFX_OLA_SHADER_LIGHT_PHONG:
                     shader->setUniform1i("flatShading", 0);
                     break;
-                    
+
                 default:
                     break;
             }
         }
     }
-    
+
     static bool shaderSetup;
-    
+
     static bool enabled;
-    
+
     static shadingType shading;
-    
+
 };
