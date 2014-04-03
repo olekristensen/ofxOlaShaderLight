@@ -449,6 +449,7 @@ public:
     {
         int numberOfPoints;
         float globalScale;
+        float time;
         ofVec4f points [100];
     };
 
