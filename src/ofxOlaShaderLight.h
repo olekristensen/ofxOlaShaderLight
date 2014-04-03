@@ -484,7 +484,7 @@ public:
     {
         if (shaderSetup)
         {
-            shader->setUniformBuffer("vertexNoise",n);
+            shader->setUniformBuffer("NoisePoints",n);
         }
     }
 
