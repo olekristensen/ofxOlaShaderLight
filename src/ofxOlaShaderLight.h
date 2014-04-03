@@ -436,6 +436,14 @@ public:
         PerLight lights[MAX_SHADER_LIGHTS];
     };
     
+    struct NoisePoints
+    {
+        int numberOfPoints;
+        float globalScale;
+        ofVec4f points [100];
+    };
+
+    
     static void begin()
     {
         if(shaderSetup)
@@ -461,6 +469,14 @@ public:
         if (shaderSetup)
         {
             shader->setUniformBuffer("Material",m);
+        }
+    }
+    
+    static void setNoisePoints(NoisePoints n)
+    {
+        if (shaderSetup)
+        {
+            shader->setUniformBuffer("vertexNoise",n);
         }
     }
     
